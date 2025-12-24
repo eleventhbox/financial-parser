@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "parser",
+    "cli-converter",
+    "cli-comparer",
+]
+resolver = "2"

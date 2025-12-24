@@ -1,0 +1,9 @@
+[package]
+name = "cli-converter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+financial-parser = { path = "../parser" }
+clap = { version = "4.0", features = ["derive"] }
+tempfile = "3.24.0"
