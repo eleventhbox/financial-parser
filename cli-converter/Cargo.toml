@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 financial-parser = { path = "../parser" }
-clap = { version = "4.0", features = ["derive"] }
-tempfile = "3.24.0"
+clap = { workspace = true }
+tempfile = { workspace = true }
