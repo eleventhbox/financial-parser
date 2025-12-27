@@ -6,11 +6,23 @@ use crate::model::transaction_type::TransactionType;
 use std::collections::HashMap;
 use std::io::{BufRead, Read};
 
+/// Reading and writing data in YPBankText format
 pub struct YPBankTextParser;
 impl YPBankTextParser {
-    /// Parses data in YPBankTextFormat from different sources and return transactions
-    /// 
-    /// Checks if data conforms to format requirements
+    /// Parses data in YPBankText format from different sources.
+    ///
+    /// Reads a text file, validates data in every text block, separated by empty lines
+    /// transforming them into transaction vector.
+    ///
+    /// # Parameters
+    ///
+    /// * `reader` — any type, implementing `std::io::Read`, from which text data can be read
+    ///
+    /// # Returning value
+    ///
+    /// Returns `Result<Vec<Transaction>, ParseError>`:
+    /// - `Ok(Vec<Transaction>)` — successful parsing, contains transaction vector
+    /// - `Err(ParseError)` — parsing error (I/O, CSV, validation etc.)
     pub fn parse<R: Read>(reader: R) -> Result<Vec<Transaction>, ParseError> {
         let reader = std::io::BufReader::new(reader);
         let mut transactions = Vec::new();
@@ -55,9 +67,20 @@ impl YPBankTextParser {
         Ok(transactions)
     }
 
-    /// Writes transactions to different targets in YPBankTextFormat 
-    /// 
-    /// Can add comments to output record
+    /// Writes transaction vector into chosen sink in YPBankBin format.
+    ///
+    /// Function serializes every transaction into text blocks and writes it into `writer`.
+    ///
+    /// # Parameters
+    ///
+    /// * `transactions` — transaction slice to write
+    /// * `writer` — any type, implementing `std::io::Write`, into which text data will be written
+    ///
+    /// # Returning value
+    ///
+    /// Returns `Result<(), ParseError>`:
+    /// - `Ok(())` — all transactions successfully written
+    /// - `Err(ParseError)` — write or validation error
     pub fn write<W: std::io::Write>(
         transactions: &[Transaction],
         writer: &mut W,
@@ -118,17 +141,46 @@ impl YPBankTextParser {
                 )));
             }
         }
-        let tx_id = parse_number("TX_ID", record.get("TX_ID").expect("TX_ID is not empty"), line_number)?;
-        let tx_type = parse_transaction_type(record.get("TX_TYPE").expect("TX_TYPE is not empty"), line_number)?;
-        let from_user_id = parse_number("FROM_USER_ID", record.get("FROM_USER_ID").expect("FROM_USER_ID is not empty"), line_number)?;
-        let to_user_id = parse_number("TO_USER_ID", record.get("TO_USER_ID").expect("TO_USER_ID is not empty"), line_number)?;
-        let amount = parse_number("AMOUNT", record.get("AMOUNT").expect("AMOUNT is not empty"), line_number)?;
+        let tx_id = parse_number(
+            "TX_ID",
+            record.get("TX_ID").ok_or_else(|| Self::make_error("TX_ID", line_number))?,
+            line_number
+        )?;
+        let tx_type = parse_transaction_type(
+            record.get("TX_TYPE").ok_or_else(|| Self::make_error("TX_TYPE", line_number))?,
+            line_number
+        )?;
+        let from_user_id = parse_number(
+            "FROM_USER_ID",
+            record.get("FROM_USER_ID").ok_or_else(|| Self::make_error("FROM_USER_ID", line_number))?,
+            line_number
+        )?;
+        let to_user_id = parse_number(
+            "TO_USER_ID",
+            record.get("TO_USER_ID").ok_or_else(|| Self::make_error("TO_USER_ID", line_number))?,
+            line_number
+        )?;
+        let amount = parse_number(
+            "AMOUNT",
+            record.get("AMOUNT").ok_or_else(|| Self::make_error("AMOUNT", line_number))?,
+            line_number
+        )?;
         if amount <= 0 {
             return Err(ParseError::InvalidAmount(amount))
         }
-        let timestamp = parse_number("TIMESTAMP", record.get("TIMESTAMP").expect("TIMESTAMP is not empty"), line_number)?;
-        let status = parse_transaction_status(record.get("STATUS").expect("STATUS is not empty"), line_number)?;
-        let description = parse_description(record.get("DESCRIPTION").expect("DESCRIPTION is not empty"), line_number)?;
+        let timestamp = parse_number(
+            "TIMESTAMP",
+            record.get("TIMESTAMP").ok_or_else(|| Self::make_error("TIMESTAMP", line_number))?,
+            line_number
+        )?;
+        let status = parse_transaction_status(
+            record.get("STATUS").ok_or_else(|| Self::make_error("STATUS", line_number))?,
+            line_number
+        )?;
+        let description = parse_description(
+            record.get("DESCRIPTION").ok_or_else(|| Self::make_error("DESCRIPTION", line_number))?,
+            line_number
+        )?;
         let transaction = Transaction {
             tx_id,
             tx_type,
@@ -141,5 +193,11 @@ impl YPBankTextParser {
         };
         transaction.validate()?;
         Ok(transaction)
+    }
+
+    fn make_error(field_name: &str, line_number: usize) -> ParseError {
+        ParseError::InvalidData(
+            format!("Field '{}' is required but missing in line {}", field_name, line_number),
+        )
     }
 }

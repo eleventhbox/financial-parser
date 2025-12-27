@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Linter
+      run: cargo clippy --all
     - name: Build
       run: cargo build --workspace --release
     - name: Run tests
